@@ -15,28 +15,28 @@ Use Python 3.9 or newer and install the dependencies with `pip install -r requir
 python src/extract_points.py \
   --video videos/test_clip.mp4 \
   --model src/best.pt \
-  --output data/points/test_clip_raw.json
+  --output data/points/raw/test_clip.json
 
 python src/create_background.py \
-  --video videos/test_clip.mp4 \
-  --detections data/points/test_clip_raw.json \
-  --output paintings/test_clip_background.png \
-  --seed 42
+  --input videos/test_clip.mp4 \
+  --detections data/points/raw/test_clip.json \
+  --output paintings/backgrounds/test_clip.png \
+  --seed 0
 
 python src/clean_points.py \
-  --input data/points/test_clip_raw.json \
-  --output data/points/test_clip_cleaned.json \
+  --input data/points/raw/test_clip.json \
+  --output data/points/cleaned/test_clip.json \
   --max-jump-per-frame 30 \
   --max-gap-frames 50
 
 python src/create_painting.py \
-  --tracks data/points/test_clip_cleaned.json \
-  --background paintings/test_clip_background.png \
-  --fish-ids 2 \
+  --tracks data/points/cleaned/test_clip.json \
+  --background paintings/backgrounds/test_clip.png \
+  --fish-ids 0 1 \
   --output paintings/
 ```
 
-Background generation uses the video's midpoint frame. It masks fish using the raw detection boxes, fills those regions from surrounding pixels, and renders the repaired frame with coarse-to-fine brush marks. Do not filter `extract_points.py` with `--fish-ids` when generating a background; the raw JSON needs detections for every fish in the frame. Pass `--background path/to/background.png` when rendering to paint over an image; otherwise, the renderer uses a white canvas. Run any script with `--help` to see its remaining settings.
+Background generation accepts either a still image or a video. For video input, it uses the midpoint frame by default and can mask fish using raw detection boxes. For a still image, pass a YOLO model to detect and remove fish: `python src/create_background.py --input photo.jpg --model src/best.pt --output paintings/backgrounds/photo.png`. Detected regions are filled from surrounding pixels before the repaired image is rendered with coarse-to-fine brush marks. Do not filter `extract_points.py` with `--fish-ids` when generating a video background; the raw JSON needs detections for every fish in the frame. Pass `--background path/to/background.png` when rendering to paint over an image; otherwise, the renderer uses a white canvas. Run any script with `--help` to see its remaining settings.
 
 ## TO DO:
 

@@ -1,4 +1,4 @@
-"""Create a painted, fish-free background from a video's midpoint frame."""
+"""Create a painted background from a still image or a frame from a video."""
 
 from __future__ import annotations
 
@@ -17,6 +17,22 @@ try:
     from .brush import draw_brush_mark
 except ImportError:
     from brush import draw_brush_mark
+
+
+IMAGE_SUFFIXES = {".bmp", ".jpeg", ".jpg", ".png", ".tif", ".tiff", ".webp"}
+
+
+def read_source_frame(
+    input_path: Path, frame_position: float
+) -> tuple[np.ndarray, int | None, str]:
+    if input_path.suffix.lower() in IMAGE_SUFFIXES:
+        frame = cv2.imread(str(input_path), cv2.IMREAD_COLOR)
+        if frame is None:
+            raise ValueError(f"Could not open image: {input_path}")
+        return frame, None, "image"
+
+    frame, frame_index = read_video_frame(input_path, frame_position)
+    return frame, frame_index, "video"
 
 
 def read_video_frame(video_path: Path, frame_position: float) -> tuple[np.ndarray, int]:
@@ -45,6 +61,34 @@ def detections_for_frame(raw_data: dict[str, Any], frame_index: int) -> list[dic
         if int(frame["frame"]) == frame_index:
             return frame["detections"]
     raise ValueError(f"Raw detection data does not contain frame {frame_index}")
+
+
+def detect_fish(
+    frame: np.ndarray, model_path: Path, confidence: float
+) -> list[dict[str, Any]]:
+    """Run YOLO on one image and return detections in the raw JSON shape."""
+    from ultralytics import YOLO
+
+    result = YOLO(str(model_path))(frame, conf=confidence, verbose=False)[0]
+    boxes = result.boxes
+    if boxes is None or boxes.cls is None:
+        return []
+
+    class_ids = boxes.cls.cpu().numpy().astype(int)
+    confidences = boxes.conf.cpu().numpy()
+    coordinates = boxes.xyxy.cpu().numpy()
+    detections = []
+    for class_id, score, box in zip(class_ids, confidences, coordinates):
+        x1, y1, x2, y2 = (float(value) for value in box)
+        detections.append(
+            {
+                "fish_id": int(class_id),
+                "confidence": float(score),
+                "bbox": [x1, y1, x2, y2],
+                "center": [(x1 + x2) / 2, (y1 + y2) / 2],
+            }
+        )
+    return detections
 
 
 def remove_fish(
@@ -88,7 +132,7 @@ def render_painted_background(
     """Render sampled image colors as coarse-to-fine, edge-aligned marks."""
     rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     height, width = rgb_frame.shape[:2]
-    canvas = Image.new("RGBA", (width * scale, height * scale), (245, 243, 239, 255))
+    canvas = Image.new("RGBA", (width * scale, height * scale), (195, 191, 171, 255))
     draw = ImageDraw.Draw(canvas, "RGBA")
 
     for stroke_size in sorted(stroke_sizes, reverse=True):
@@ -129,13 +173,35 @@ def render_painted_background(
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--video", required=True, type=Path)
-    parser.add_argument("--detections", required=True, type=Path)
+    parser.add_argument(
+        "--input",
+        "--video",
+        dest="input_path",
+        required=True,
+        type=Path,
+        help="Still image or video to paint; --video remains as a compatibility alias.",
+    )
+    parser.add_argument(
+        "--detections",
+        type=Path,
+        help="Raw video detection JSON used to remove fish from the selected frame.",
+    )
+    parser.add_argument(
+        "--model",
+        type=Path,
+        help="YOLO model used to find and remove fish from a still image.",
+    )
+    parser.add_argument(
+        "--confidence",
+        type=float,
+        default=0.25,
+        help="Minimum confidence for still-image YOLO detections (default: 0.25).",
+    )
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--frame-position", type=float, default=0.5)
     parser.add_argument("--box-padding", type=float, default=0.15)
     parser.add_argument("--inpaint-radius", type=float, default=7.0)
-    parser.add_argument("--stroke-sizes", nargs="+", type=float, default=(96, 48, 24, 12))
+    parser.add_argument("--stroke-sizes", nargs="+", type=float, default=(200, 120, 120, 60, 60, 30)) # use multiple passes to prevent blank spaces
     parser.add_argument("--opacity", type=int, default=85)
     parser.add_argument("--scale", type=int, default=2)
     parser.add_argument("--seed", type=int)
@@ -152,19 +218,36 @@ def main() -> None:
         raise ValueError("Opacity must be 1-255 and scale must be at least 1")
     if any(size <= 0 for size in args.stroke_sizes):
         raise ValueError("All stroke sizes must be positive")
+    if not 0 <= args.confidence <= 1:
+        raise ValueError("--confidence must be between 0 and 1")
+    if args.detections and args.model:
+        raise ValueError("Use either --detections or --model, not both")
 
-    raw_data = json.loads(args.detections.read_text(encoding="utf-8"))
-    frame, frame_index = read_video_frame(args.video, args.frame_position)
-    expected_size = (
-        int(raw_data["video"]["width"]),
-        int(raw_data["video"]["height"]),
+    frame, frame_index, source_type = read_source_frame(
+        args.input_path, args.frame_position
     )
-    actual_size = (frame.shape[1], frame.shape[0])
-    if actual_size != expected_size:
-        raise ValueError(
-            f"Video frame is {actual_size}, but detection data expects {expected_size}"
+    detections = []
+    if args.detections:
+        if source_type == "image":
+            raise ValueError("--detections contains video frame data and cannot be used with an image")
+        raw_data = json.loads(args.detections.read_text(encoding="utf-8"))
+        expected_size = (
+            int(raw_data["video"]["width"]),
+            int(raw_data["video"]["height"]),
         )
-    detections = detections_for_frame(raw_data, frame_index)
+        actual_size = (frame.shape[1], frame.shape[0])
+        if actual_size != expected_size:
+            raise ValueError(
+                f"Video frame is {actual_size}, but detection data expects {expected_size}"
+            )
+        detections = detections_for_frame(raw_data, frame_index)
+    elif args.model:
+        if source_type != "image":
+            raise ValueError("--model is for still images; use --detections with video input")
+        if not args.model.is_file():
+            raise FileNotFoundError(f"Model not found: {args.model}")
+        detections = detect_fish(frame, args.model, args.confidence)
+
     repaired_frame, _ = remove_fish(frame, detections, args.box_padding, args.inpaint_radius)
     image = render_painted_background(
         repaired_frame,
@@ -175,10 +258,13 @@ def main() -> None:
     )
     args.output.parent.mkdir(parents=True, exist_ok=True)
     image.convert("RGB").save(args.output)
-    print(
-        f"Saved background to {args.output} using frame {frame_index} "
-        f"with {len(detections)} fish region(s) removed"
+    source_description = (
+        f"frame {frame_index} from {args.input_path}"
+        if frame_index is not None
+        else str(args.input_path)
     )
+    print(f"Saved background to {args.output} using {source_description}; "
+          f"removed {len(detections)} fish region(s)")
 
 
 if __name__ == "__main__":
