@@ -206,7 +206,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--box-padding", type=float, default=0.15)
     parser.add_argument("--inpaint-radius", type=float, default=7.0)
     parser.add_argument("--stroke-sizes", nargs="+", type=float, default=(200, 120, 120, 60, 60, 30)) # use multiple passes to prevent blank spaces
-    parser.add_argument("--opacity", type=int, default=85)
+    parser.add_argument("--opacity", type=int, default=75)
     parser.add_argument("--scale", type=int, default=2)
     parser.add_argument("--seed", type=int)
     return parser.parse_args()

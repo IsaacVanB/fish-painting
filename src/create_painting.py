@@ -37,7 +37,7 @@ def pick_weighted_color(colors: list[tuple[int, int, int]], rng: random.Random):
 def render_painting(
     tracks_data: dict[str, Any],
     fish_ids: list[int],
-    background_path: Path | None,
+    background_path: Path | Image.Image | None,
     rng: random.Random,
     marks_per_point: int = 15,
     jitter_radius: float = 12,
@@ -51,7 +51,13 @@ def render_painting(
 
     video = tracks_data["source"]["video"]
     base_size = (int(video["width"]), int(video["height"]))
-    if background_path:
+    if isinstance(background_path, Image.Image):
+        background = background_path.convert("RGBA")
+        if background.size != base_size:
+            raise ValueError(
+                f"Background is {background.size}, but video is {base_size}"
+            )
+    elif background_path:
         background = Image.open(background_path).convert("RGBA")
         if background.size != base_size:
             raise ValueError(
@@ -104,7 +110,11 @@ def output_path(path: Path) -> Path:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--tracks", required=True, type=Path)
-    parser.add_argument("--output", required=True, type=Path)
+    parser.add_argument(
+        "--output",
+        type=Path,
+        help="Output PNG or directory (default: paintings/fish_art_<datetime>.png).",
+    )
     parser.add_argument("--background", type=Path)
     parser.add_argument("--fish-ids", nargs="+", required=True, type=int)
     parser.add_argument("--marks-per-point", type=int, default=15)
@@ -135,7 +145,7 @@ def main() -> None:
         tuple(args.shapes),
         args.scale,
     )
-    destination = output_path(args.output)
+    destination = output_path(args.output or Path("paintings"))
     destination.parent.mkdir(parents=True, exist_ok=True)
     image.convert("RGB").save(destination)
     print(f"Saved painting to {destination}")
