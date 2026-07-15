@@ -109,7 +109,11 @@ def clean_tracks(
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--input", required=True, type=Path)
-    parser.add_argument("--output", required=True, type=Path)
+    parser.add_argument(
+        "--output",
+        type=Path,
+        help="Output JSON path (default: data/points/cleaned/<input filename>).",
+    )
     parser.add_argument("--max-jump-per-frame", type=float, default=30.0)
     parser.add_argument("--max-gap-frames", type=int, default=50)
     return parser.parse_args()
@@ -125,9 +129,10 @@ def main() -> None:
     raw_data = json.loads(args.input.read_text(encoding="utf-8"))
     output = clean_tracks(raw_data, args.max_jump_per_frame, args.max_gap_frames)
     output["source"]["raw_detection_file"] = str(args.input)
-    args.output.parent.mkdir(parents=True, exist_ok=True)
-    args.output.write_text(json.dumps(output, indent=2) + "\n", encoding="utf-8")
-    print(f"Saved cleaned tracks to {args.output}")
+    destination = args.output or Path("data/points/cleaned") / args.input.name
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    destination.write_text(json.dumps(output, indent=2) + "\n", encoding="utf-8")
+    print(f"Saved cleaned tracks to {destination}")
 
 
 if __name__ == "__main__":

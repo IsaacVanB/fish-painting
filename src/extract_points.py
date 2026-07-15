@@ -102,7 +102,11 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--video", required=True, type=Path)
     parser.add_argument("--model", required=True, type=Path)
-    parser.add_argument("--output", required=True, type=Path)
+    parser.add_argument(
+        "--output",
+        type=Path,
+        help="Output JSON path (default: data/points/raw/<video name>.json).",
+    )
     parser.add_argument("--fish-ids", nargs="+", type=int)
     parser.add_argument(
         "--confidence",
@@ -125,9 +129,10 @@ def main() -> None:
     output = extract_detections(
         args.video, args.model, set(args.fish_ids) if args.fish_ids else None, args.confidence
     )
-    args.output.parent.mkdir(parents=True, exist_ok=True)
-    args.output.write_text(json.dumps(output, indent=2) + "\n", encoding="utf-8")
-    print(f"Saved raw detections to {args.output}")
+    destination = args.output or Path("data/points/raw") / f"{args.video.stem}.json"
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    destination.write_text(json.dumps(output, indent=2) + "\n", encoding="utf-8")
+    print(f"Saved raw detections to {destination}")
 
 
 if __name__ == "__main__":

@@ -197,7 +197,11 @@ def parse_args() -> argparse.Namespace:
         default=0.25,
         help="Minimum confidence for still-image YOLO detections (default: 0.25).",
     )
-    parser.add_argument("--output", required=True, type=Path)
+    parser.add_argument(
+        "--output",
+        type=Path,
+        help="Output PNG path (default: paintings/backgrounds/<input name>.png).",
+    )
     parser.add_argument("--frame-position", type=float, default=0.5)
     parser.add_argument("--box-padding", type=float, default=0.15)
     parser.add_argument("--inpaint-radius", type=float, default=7.0)
@@ -256,14 +260,15 @@ def main() -> None:
         args.opacity,
         args.scale,
     )
-    args.output.parent.mkdir(parents=True, exist_ok=True)
-    image.convert("RGB").save(args.output)
+    destination = args.output or Path("paintings/backgrounds") / f"{args.input_path.stem}.png"
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    image.convert("RGB").save(destination)
     source_description = (
         f"frame {frame_index} from {args.input_path}"
         if frame_index is not None
         else str(args.input_path)
     )
-    print(f"Saved background to {args.output} using {source_description}; "
+    print(f"Saved background to {destination} using {source_description}; "
           f"removed {len(detections)} fish region(s)")
 
 
