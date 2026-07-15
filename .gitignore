@@ -1,1 +1,3 @@
 fishArt
+__pycache__/
+*.py[cod]
