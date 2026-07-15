@@ -12,6 +12,11 @@ from typing import Any
 
 from PIL import Image, ImageDraw
 
+try:
+    from .brush import draw_brush_mark
+except ImportError:
+    from brush import draw_brush_mark
+
 
 FISH_COLORS = {
     0: [(255, 238, 79), (253, 255, 142), (233, 136, 62)],
@@ -27,27 +32,6 @@ def pick_weighted_color(colors: list[tuple[int, int, int]], rng: random.Random):
     if len(colors) != 3:
         raise ValueError("Each fish palette must contain exactly three colors")
     return rng.choices(colors, weights=[0.60, 0.25, 0.15], k=1)[0]
-
-
-def polygon_for_shape(
-    shape: str, width: float, height: float, rotation: float, rng: random.Random
-) -> list[tuple[float, float]] | None:
-    if shape == "rectangle":
-        points = [(-width / 2, -height / 2), (width / 2, -height / 2),
-                  (width / 2, height / 2), (-width / 2, height / 2)]
-    elif shape == "triangle":
-        points = [(0, -height / 2), (width / 2, height / 2), (-width / 2, height / 2)]
-    elif shape == "blob":
-        points = []
-        for index in range(10):
-            angle = 2 * math.pi * index / 10
-            radius = width / 2 * (0.7 + 0.3 * rng.random())
-            points.append((radius * math.cos(angle), radius * math.sin(angle)))
-    else:
-        return None
-
-    cosine, sine = math.cos(rotation), math.sin(rotation)
-    return [(x * cosine - y * sine, x * sine + y * cosine) for x, y in points]
 
 
 def render_painting(
@@ -100,15 +84,9 @@ def render_painting(
                 color = (*pick_weighted_color(FISH_COLORS[fish_id], rng), alpha)
                 shape = rng.choice(shape_types)
 
-                if shape == "circle":
-                    draw.ellipse((x - width / 2, y - height / 2,
-                                  x + width / 2, y + height / 2), fill=color)
-                    continue
-
-                polygon = polygon_for_shape(shape, width, height, rotation, rng)
-                if polygon is None:
-                    raise ValueError(f"Unsupported shape: {shape}")
-                draw.polygon([(x + px, y + py) for px, py in polygon], fill=color)
+                draw_brush_mark(
+                    draw, (x, y), (width, height), rotation, shape, color, rng
+                )
 
     brush_layer = layer.resize(base_size, Image.Resampling.LANCZOS)
     result = background.copy()
