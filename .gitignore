@@ -1,3 +1,13 @@
 fishArt
 __pycache__/
 *.py[cod]
+
+# Keep the small test fixture, but exclude local source videos.
+/data/videos/*
+!/data/videos/test_clip.mp4
+
+# Keep representative point data, but exclude generated tracking output.
+/data/points/raw/*
+!/data/points/raw/test_clip.json
+/data/points/cleaned/*
+!/data/points/cleaned/test_clip.json

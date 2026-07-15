@@ -1,10 +1,10 @@
 {
   "schema_version": 1,
   "data_type": "raw_detections",
-  "created_at": "2026-07-15T08:33:04.973457+00:00",
+  "created_at": "2026-07-15T09:16:37.494439+00:00",
   "video": {
-    "path": "videos/test_clip.mp4",
-    "original_path": "videos/test_clip.mp4",
+    "path": "data/videos/test_clip.mp4",
+    "original_path": "data/videos/test_clip.mp4",
     "converted_from_mov": false,
     "width": 1920,
     "height": 1080,

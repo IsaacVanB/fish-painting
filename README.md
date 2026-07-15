@@ -2,7 +2,7 @@ After seeing a rat "paint" by running across a canvas with paint on its feet, I 
 
 I made this using YOLOv11 to identify individual fish and track their motion across video frames. With a list of coordinates for each guppy, the code filters out misidentifications by removing points where the guppy appears to jump to another spot in the tank. Gaps in the guppy's path, such as when it is occluded by a leaf, are compensated for by filling in points between the last known coordinates. Each guppy gets its own paintbrush color, eyedropped from a photo of the fish.
 
-![Cover image](paintings/cover_image.png)
+![Cover image](paintings/fish_art_20260715_052025.png)
 
 This approach worked fine at first, but all of the guppies I trained the YOLO model on have since passed away, which revealed a glaring failure mode. Retraining the model every time I get a new fish isn't practical, so my next goal is to implement Re-ID. An object recognition model trained to recognize fish, combined with Re-ID, should make this program work for any fish.  
 
@@ -13,12 +13,12 @@ Use Python 3.9 or newer and install the dependencies with `pip install -r requir
 
 ```bash
 python src/extract_points.py \
-  --video videos/test_clip.mp4 \
+  --video data/videos/test_clip.mp4 \
   --model src/best.pt \
   --output data/points/raw/test_clip.json
 
 python src/create_background.py \
-  --input videos/test_clip.mp4 \
+  --input data/videos/test_clip.mp4 \
   --detections data/points/raw/test_clip.json \
   --output paintings/backgrounds/test_clip.png \
   --seed 0
