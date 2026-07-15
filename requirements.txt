@@ -1,5 +1,5 @@
 ultralytics
 numpy
 Pillow
-moviepy
+moviepy>=2,<3
 opencv-python

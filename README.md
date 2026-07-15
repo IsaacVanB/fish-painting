@@ -8,6 +8,7 @@ This approach worked fine at first, but all of the guppies I trained the YOLO mo
 ## Usage
 
 The pipeline has three stages so that detection, track-cleaning experiments, and painting settings can be run independently.
+Use Python 3.9 or newer and install the dependencies with `pip install -r requirements.txt`.
 
 ```bash
 python src/extract_points.py \

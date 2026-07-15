@@ -9,7 +9,21 @@ from pathlib import Path
 from typing import Any
 
 import cv2
+from moviepy import VideoFileClip
 from ultralytics import YOLO
+
+
+def convert_mov_to_mp4(input_path: Path, output_path: Path | None = None) -> Path:
+    """Convert a MOV video to MP4 and return the converted file path."""
+    if input_path.suffix.lower() != ".mov":
+        return input_path
+
+    destination = output_path or input_path.with_suffix(".mp4")
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    print(f"Converting {input_path} to {destination}")
+    with VideoFileClip(str(input_path)) as clip:
+        clip.write_videofile(str(destination), codec="libx264")
+    return destination
 
 
 def video_metadata(video_path: Path) -> dict[str, Any]:
@@ -34,6 +48,8 @@ def extract_detections(
     confidence: float = 0.25,
 ) -> dict[str, Any]:
     """Run YOLO and retain every matching bounding box in every frame."""
+    original_video_path = video_path
+    video_path = convert_mov_to_mp4(video_path)
     metadata = video_metadata(video_path)
     model = YOLO(str(model_path))
     frames = []
@@ -67,7 +83,12 @@ def extract_detections(
         "schema_version": 1,
         "data_type": "raw_detections",
         "created_at": datetime.now(timezone.utc).isoformat(),
-        "video": {"path": str(video_path), **metadata},
+        "video": {
+            "path": str(video_path),
+            "original_path": str(original_video_path),
+            "converted_from_mov": video_path != original_video_path,
+            **metadata,
+        },
         "model": {"path": str(model_path)},
         "settings": {
             "fish_ids": sorted(fish_ids) if fish_ids is not None else None,
