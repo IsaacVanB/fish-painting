@@ -6,6 +6,8 @@ I made this using YOLOv11 to identify individual fish and track their motion acr
 
 ![Cover image](paintings/fish_art_20260715_064045.png)
 
+![Original footage, detection overlay, and generated painting](paintings/demo.gif)
+
 This approach worked fine at first, but all of the guppies I trained the YOLO model on have since passed away, which revealed a failure mode. Retraining the model every time I get a new fish isn't practical, so my next goal is to implement Re-ID. An object recognition model trained to recognize fish, combined with Re-ID, should make this program work for any fish.  
 
 ## Usage

@@ -1,6 +1,7 @@
 fishArt
 __pycache__/
 *.py[cod]
+src/create_demo.py
 
 # Keep the small test fixture, but exclude local source videos.
 /data/videos/*
